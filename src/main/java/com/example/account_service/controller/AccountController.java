@@ -19,7 +19,7 @@ import java.util.List;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/api/accounts")
+@RequestMapping("/account")
 @CrossOrigin(origins = "*")
 public class AccountController {
     
