@@ -1,14 +1,23 @@
 server:
   port: 8094
 
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+        defaultZone: http://localhost:8761/eureka/
+  instance:
+    hostname:
+
 spring:
   application:
     name: ACCOUNT-SERVICE
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/bankDB?createDatabaseIfNotExist=true
+    url: jdbc:postgresql://localhost:5432/banking_accounts?createDatabaseIfNotExist=true
     username: postgres
-    password: user24
+    password: 1234567890
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,4 +28,16 @@ spring:
       hibernate:
         format_sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  #kafka:
+    #bootstrap-servers: localhost:9092
+      #producer:
+      #key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    #value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      #consumer:
+      #group-id: account-service-group
+      #key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      #value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      #properties:
+    #spring.json.trusted.packages: "com.banking.account_service.dto"
 
