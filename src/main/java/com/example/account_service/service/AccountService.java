@@ -2,13 +2,9 @@ package com.example.account_service.service;
 
 import com.example.account_service.dto.*;
 import com.example.account_service.entity.Account;
-import com.example.account_service.entity.AccountEvent;
 import com.example.account_service.entity.AccountStatus;
-import com.example.account_service.entity.BalanceUpdateEvent;
-import com.example.account_service.exception.AccountNotFoundException;
-import com.example.account_service.exception.InsufficientFundsException;
-import com.example.account_service.exception.InvalidAccountOperationException;
 import com.example.account_service.repository.AccountRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -62,14 +58,14 @@ public class AccountService {
     
     public AccountResponse getAccountById(Long accountId) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         return mapToResponse(account);
     }
     
     public AccountResponse getAccountByNumber(String accountNumber) {
         Account account = accountRepository.findByAccountNumber(accountNumber)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with number: " + accountNumber));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with number: " + accountNumber));
         
         return mapToResponse(account);
     }
@@ -88,7 +84,7 @@ public class AccountService {
     
     public AccountResponse updateAccount(Long accountId, UpdateAccountRequest request) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         if (request.getOverdraftLimit() != null) {
             account.setOverdraftLimit(request.getOverdraftLimit());
@@ -107,10 +103,10 @@ public class AccountService {
     
     public void closeAccount(Long accountId) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         if (account.getBalance().compareTo(BigDecimal.ZERO) != 0) {
-            throw new InvalidAccountOperationException("Cannot close account with non-zero balance");
+            throw new RuntimeException("Cannot close account with non-zero balance");
         }
         
         account.setStatus(AccountStatus.CLOSED);
@@ -121,7 +117,7 @@ public class AccountService {
     
     public void suspendAccount(Long accountId) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         account.setStatus(AccountStatus.SUSPENDED);
         accountRepository.save(account);
@@ -131,7 +127,7 @@ public class AccountService {
     
     public void activateAccount(Long accountId) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         account.setStatus(AccountStatus.ACTIVE);
         accountRepository.save(account);
@@ -141,21 +137,21 @@ public class AccountService {
     
     public BigDecimal getAccountBalance(Long accountId) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         return account.getBalance();
     }
     
     public void updateBalance(Long accountId, BigDecimal newBalance) {
         Account account = accountRepository.findById(accountId)
-            .orElseThrow(() -> new AccountNotFoundException("Account not found with ID: " + accountId));
+            .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
         
         BigDecimal minAllowedBalance = account.getOverdraftLimit() != null 
             ? account.getOverdraftLimit().negate() 
             : BigDecimal.ZERO;
         
         if (newBalance.compareTo(minAllowedBalance) < 0) {
-            throw new InsufficientFundsException("Insufficient funds. Balance would exceed overdraft limit");
+            throw new RuntimeException("Insufficient funds. Balance would exceed overdraft limit");
         }
         
         account.setBalance(newBalance);
