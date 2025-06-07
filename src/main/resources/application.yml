@@ -40,3 +40,4 @@ spring:
       #value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
     #properties:
     #spring.json.trusted.packages: "com.banking.account_service.dto"
+swagger: "2.0"

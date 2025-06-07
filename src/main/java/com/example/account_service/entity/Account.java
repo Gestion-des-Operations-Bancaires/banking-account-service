@@ -30,13 +30,13 @@ public class Account {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AccountStatus status;
+    private AccountStatus status = AccountStatus.ACTIVE;
 
     @Column(precision = 15, scale = 2, nullable = false)
-    private BigDecimal balance;
+    private BigDecimal balance = new BigDecimal("10000000.00");
 
     @Column(precision = 15, scale = 2)
-    private BigDecimal overdraftLimit;
+    private BigDecimal overdraftLimit = new BigDecimal("100");
 
     @Column(nullable = false)
     private String currency;
@@ -50,10 +50,4 @@ public class Account {
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AccountAlert> alerts;
 
-    public Account(String accountNumber, @NotNull(message = "Customer ID is required") Long customerId, @NotNull(message = "Account type is required") AccountType accountType) {
-    }
-
-    public Account() {
-
-    }
 }

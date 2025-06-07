@@ -29,11 +29,17 @@ public class AccountService {
     private final SecureRandom random = new SecureRandom();
     
     public AccountResponse createAccount(CreateAccountRequest request) {
-        // Génération du numéro de compte unique
-        String accountNumber = generateAccountNumber();
         
         // Création du compte
-        Account account = new Account(accountNumber, request.getCustomerId(), request.getAccountType());
+        Account account = new Account();
+
+        if (request.getAccountType() != null) {
+            account.setAccountType(request.getAccountType());
+        }
+
+        if (request.getCustomerId() != null) {
+            account.setCustomerId(request.getCustomerId());
+        }
         
         if (request.getOverdraftLimit() != null) {
             account.setOverdraftLimit(request.getOverdraftLimit());
@@ -159,24 +165,7 @@ public class AccountService {
         
         //publishBalanceUpdateEvent(account);
     }
-    
-    private String generateAccountNumber() {
-        String accountNumber;
-        do {
-            // Format: XXXX-XXXX-XXXX-XXXX (16 digits)
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 16; i++) {
-                if (i > 0 && i % 4 == 0) {
-                    sb.append("-");
-                }
-                sb.append(random.nextInt(10));
-            }
-            accountNumber = sb.toString();
-        } while (accountRepository.existsByAccountNumber(accountNumber));
-        
-        return accountNumber;
-    }
-    
+
     private AccountResponse mapToResponse(Account account) {
         AccountResponse response = new AccountResponse();
         response.setId(account.getId());
