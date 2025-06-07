@@ -11,6 +11,7 @@ import java.util.List;
 @Entity
 @Table(name = "accounts")
 @Data
+@EntityListeners(AccountListener.class)
 public class Account {
 
     @Id
@@ -37,7 +38,7 @@ public class Account {
     @Column(precision = 15, scale = 2)
     private BigDecimal overdraftLimit;
 
-    @Column(nullable = false, length = 3)
+    @Column(nullable = false)
     private String currency;
 
     @Column(nullable = false)
