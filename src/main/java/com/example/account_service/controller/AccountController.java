@@ -30,6 +30,16 @@ public class AccountController {
 
     private AccountService accountService;
 
+    @GetMapping("/user-id")
+    @Operation(summary = "identity check", description = "Simple endpoint to check id of the connected user")
+    public Integer getUserId(){
+        Integer userId = accountService.getUserId();
+        if (userId == null) {
+            return -1; // or throw an exception
+        }
+        return userId;
+    }
+
     @GetMapping("/hello")
     @Operation(summary = "Health check", description = "Simple endpoint to test service availability")
     public String hello() {

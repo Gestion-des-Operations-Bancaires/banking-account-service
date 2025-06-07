@@ -5,6 +5,8 @@ import com.example.account_service.entity.Account;
 import com.example.account_service.entity.AccountStatus;
 import com.example.account_service.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,16 +20,21 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@AllArgsConstructor
 public class AccountService {
     
-    @Autowired
     private AccountRepository accountRepository;
-    
-//    @Autowired
-//    private KafkaTemplate<String, Object> kafkaTemplate;
-    
-    private final SecureRandom random = new SecureRandom();
-    
+
+    private HttpServletRequest request;
+
+    public Integer getUserId(){
+        Object userId = request.getAttribute("userId");
+
+        System.out.println("userId: " + userId);
+
+        return (Integer) userId;
+    }
+
     public AccountResponse createAccount(CreateAccountRequest request) {
         
         // Création du compte

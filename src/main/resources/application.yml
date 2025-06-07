@@ -40,4 +40,6 @@ spring:
       #value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
     #properties:
     #spring.json.trusted.packages: "com.banking.account_service.dto"
-swagger: "2.0"
+jwt:
+  secret: 6D7662M7gmjq6qo736C35616B70sI5zyWiPKmrOsJuctP766B37396F746A71647F
+  expiration: 86400000 # 24 hours
