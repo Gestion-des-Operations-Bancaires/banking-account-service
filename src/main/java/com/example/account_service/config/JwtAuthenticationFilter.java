@@ -60,8 +60,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Token valide, extraire les informations
                 String username = claims.getSubject();
+
                 Object userId = claims.get("userId");
+                request.setAttribute("userId", userId);
+                request.setAttribute("jwt", jwt);
                 String role = claims.get("role", String.class);
+                request.setAttribute("role", role);
+
+
                 Date expiration = claims.getExpiration();
                 Date issuedAt = claims.getIssuedAt();
 

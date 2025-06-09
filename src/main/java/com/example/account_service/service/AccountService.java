@@ -36,7 +36,8 @@ public class AccountService {
     }
 
     public AccountResponse createAccount(CreateAccountRequest request) {
-        
+        Integer userId = getUserId();
+
         // Création du compte
         Account account = new Account();
 
@@ -45,7 +46,7 @@ public class AccountService {
         }
 
         if (request.getCustomerId() != null) {
-            account.setCustomerId(request.getCustomerId());
+            account.setCustomerId(userId.longValue());
         }
         
         if (request.getOverdraftLimit() != null) {
