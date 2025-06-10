@@ -1,6 +1,7 @@
 package com.example.account_service.controller;
 
 import com.example.account_service.dto.AccountResponse;
+import com.example.account_service.dto.AccountResponseWithUser;
 import com.example.account_service.dto.CreateAccountRequest;
 import com.example.account_service.dto.UpdateAccountRequest;
 import com.example.account_service.service.AccountService;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @AllArgsConstructor
@@ -34,10 +36,8 @@ public class AccountController {
     @Operation(summary = "identity check", description = "Simple endpoint to check id of the connected user")
     public Integer getUserId(){
         Integer userId = accountService.getUserId();
-        if (userId == null) {
-            return -1; // or throw an exception
-        }
-        return userId;
+        // or throw an exception
+        return Objects.requireNonNullElse(userId, -1);
     }
 
     @GetMapping("/hello")
@@ -65,9 +65,9 @@ public class AccountController {
             @ApiResponse(responseCode = "200", description = "Account found"),
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    public ResponseEntity<AccountResponse> getAccount(
+    public ResponseEntity<AccountResponseWithUser> getAccount(
             @Parameter(description = "Account ID") @PathVariable Long accountId) {
-        AccountResponse response = accountService.getAccountById(accountId);
+        AccountResponseWithUser response = accountService.getAccountById(accountId);
         return ResponseEntity.ok(response);
     }
 
