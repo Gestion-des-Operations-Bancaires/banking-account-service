@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        
+
         String authHeader = request.getHeader("Authorization");
         String requestPath = request.getRequestURI();
 
@@ -50,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String jwt = authHeader.substring(7);
-            
+
             try {
                 Claims claims = Jwts.parserBuilder()
                         .setSigningKey(getSigningKey())
@@ -73,7 +73,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Vérifier si le token n'est pas expiré (double vérification)
                 if (expiration != null && expiration.before(new Date())) {
-                    handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+                    handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                             "Token expired", "The JWT token has expired. Please login again.");
                     return;
                 }
@@ -86,8 +86,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("issuedAt", issuedAt);
                 request.setAttribute("expiration", expiration);
 
-                System.out.println("Token validated for user: " + username + 
-                                 " (ID: " + userId + ", Role: " + role + ")");
+                System.out.println("Token validated for user: " + username +
+                        " (ID: " + userId + ", Role: " + role + ")");
 
                 // Continuer la chaîne de filtres avec un token valide
                 filterChain.doFilter(request, response);
@@ -95,31 +95,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             } catch (ExpiredJwtException e) {
                 System.err.println("Token expired: " + e.getMessage());
-                handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+                handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                         "Token expired", "The JWT token has expired. Please login again.");
                 return;
 
             } catch (MalformedJwtException e) {
                 System.err.println("Invalid JWT token format: " + e.getMessage());
-                handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+                handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                         "Invalid token", "The JWT token is malformed.");
                 return;
 
             } catch (UnsupportedJwtException e) {
                 System.err.println("Unsupported JWT token: " + e.getMessage());
-                handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+                handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                         "Unsupported token", "The JWT token format is not supported.");
                 return;
 
             } catch (IllegalArgumentException e) {
                 System.err.println("JWT claims string is empty: " + e.getMessage());
-                handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+                handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                         "Invalid token", "The JWT token is empty or invalid.");
                 return;
 
             } catch (Exception e) {
                 System.err.println("Token validation error: " + e.getMessage());
-                handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+                handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                         "Invalid token", "An error occurred while validating the token.");
                 return;
             }
@@ -127,7 +127,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Pas de token Bearer, vérifier si l'endpoint nécessite une authentification
         if (requiresAuthentication(requestPath)) {
-            handleErrorResponse(response, HttpStatus.UNAUTHORIZED, 
+            handleErrorResponse(response, HttpStatus.UNAUTHORIZED,
                     "Missing token", "Authorization token is required for this endpoint.");
             return;
         }
@@ -141,11 +141,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private boolean isPublicEndpoint(String path) {
         return path.startsWith("/swagger-ui") ||
-               path.startsWith("/v3/api-docs") ||
-               path.startsWith("/actuator") ||
-               path.equals("/favicon.ico") ||
-               path.startsWith("/public") ||
-               path.startsWith("/health");
+                path.startsWith("/v3/api-docs") ||
+                path.startsWith("/actuator") ||
+                path.equals("/favicon.ico") ||
+                path.startsWith("/public") ||
+                path.startsWith("/health");
     }
 
     /**
@@ -153,7 +153,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private boolean requiresAuthentication(String path) {
         return path.startsWith("/api/accounts") ||
-               path.startsWith("/api/protected");
+                path.startsWith("/api/protected");
     }
 
     /**
@@ -161,7 +161,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private void handleErrorResponse(HttpServletResponse response, HttpStatus status,
                                      String error, String message) throws IOException {
-        
+
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("timestamp", new Date());
         errorResponse.put("status", status.value());
