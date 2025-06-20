@@ -33,7 +33,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Endpoints publics
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/actuator/**", "/health/**", "/favicon.ico").permitAll()
+                .requestMatchers("/actuator/**", "/health/**", "/favicon.ico", "/rabbitmq/**").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 
                 // Endpoints protégés

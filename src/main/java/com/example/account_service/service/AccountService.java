@@ -3,6 +3,7 @@ package com.example.account_service.service;
 import com.example.account_service.dto.*;
 import com.example.account_service.entity.Account;
 import com.example.account_service.entity.AccountStatus;
+import com.example.account_service.model.AccountCreation;
 import com.example.account_service.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,7 @@ import org.springframework.http.HttpMethod;
 public class AccountService {
 
 
+    private final RabbitMQSender rabbitMQSender;
     private RestTemplate restTemplate;
     private AccountRepository accountRepository;
 
@@ -86,9 +88,11 @@ public class AccountService {
         }
         
         Account savedAccount = accountRepository.save(account);
-        
-        // Publication d'un événement
-        //publishAccountEvent("ACCOUNT_CREATED", savedAccount);
+        AccountCreation event = rabbitMqEvent(savedAccount);
+
+        System.out.println("event: " + event);
+
+        rabbitMQSender.send(event);
         
         return mapToResponse(savedAccount);
     }
@@ -211,7 +215,21 @@ public class AccountService {
         response.setCurrency(account.getCurrency());
         response.setCreatedAt(account.getCreatedAt());
         response.setUpdatedAt(account.getUpdatedAt());
+
         return response;
+    }
+
+    private AccountCreation rabbitMqEvent(Account account) {
+        AccountCreation accountCreation = new AccountCreation();
+        accountCreation.setId(account.getId());
+        accountCreation.setAccountNumber(account.getAccountNumber());
+        accountCreation.setCustomerId(account.getCustomerId());
+        accountCreation.setAccountType(account.getAccountType());
+        accountCreation.setBalance(account.getBalance());
+        accountCreation.setOverdraftLimit(account.getOverdraftLimit());
+        accountCreation.setCurrency(account.getCurrency());
+
+        return accountCreation;
     }
 
     private AccountResponseWithUser mapToResponseWithUser(Account account, Integer userId) {
@@ -264,27 +282,5 @@ public class AccountService {
 
         return response;
     }
-    
-    /*private void publishAccountEvent(String eventType, Account account) {
-        AccountEvent event = new AccountEvent();
-        event.setEventType(eventType);
-        event.setAccountId(account.getId());
-        event.setAccountNumber(account.getAccountNumber());
-        event.setCustomerId(account.getCustomerId());
-        event.setAccountType(account.getAccountType().toString());
-        event.setBalance(account.getBalance());
-        event.setTimestamp(java.time.LocalDateTime.now());
-        
-        kafkaTemplate.send("account-events", event);
-    }
-    
-    private void publishBalanceUpdateEvent(Account account) {
-        BalanceUpdateEvent event = new BalanceUpdateEvent();
-        event.setAccountId(account.getId());
-        event.setAccountNumber(account.getAccountNumber());
-        event.setNewBalance(account.getBalance());
-        event.setTimestamp(java.time.LocalDateTime.now());
-        
-        kafkaTemplate.send("balance-updates", event);
-    }*/
+
 }

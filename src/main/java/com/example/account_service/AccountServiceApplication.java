@@ -1,12 +1,14 @@
 package com.example.account_service;
 
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {RabbitAutoConfiguration.class})
 public class AccountServiceApplication {
 
 	public static void main(String[] args) {
@@ -18,5 +20,4 @@ public class AccountServiceApplication {
 	public RestTemplate restTemplate(){
 		return new RestTemplate();
 	}
-
 }
