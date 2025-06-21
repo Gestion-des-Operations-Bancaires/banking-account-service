@@ -3,26 +3,35 @@ package com.example.account_service.service;
 import com.example.account_service.dto.*;
 import com.example.account_service.entity.Account;
 import com.example.account_service.entity.AccountStatus;
+import com.example.account_service.model.AccountCreation;
 import com.example.account_service.repository.AccountRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
-import java.security.SecureRandom;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 @Service
 @Transactional
 @AllArgsConstructor
+@Slf4j
 public class AccountService {
-    
+
+
+    private final RabbitMQSender rabbitMQSender;
+    private RestTemplate restTemplate;
     private AccountRepository accountRepository;
 
     private HttpServletRequest request;
@@ -35,8 +44,25 @@ public class AccountService {
         return (Integer) userId;
     }
 
+    public String getToken() {
+        Object token = request.getAttribute("jwt");
+
+        System.out.println("Raw token object: " + token);
+        System.out.println("Token type: " + (token != null ? token.getClass().getName() : "null"));
+
+        if (token instanceof String tokenStr) {
+            System.out.println("Token length: " + tokenStr.length());
+            System.out.println("Token preview: " + tokenStr.substring(0, Math.min(50, tokenStr.length())) + "...");
+            return tokenStr;
+        }
+
+        System.out.println("Token is not a String or is null");
+        return null;
+    }
+
     public AccountResponse createAccount(CreateAccountRequest request) {
-        
+        Integer userId = getUserId();
+
         // Création du compte
         Account account = new Account();
 
@@ -45,7 +71,7 @@ public class AccountService {
         }
 
         if (request.getCustomerId() != null) {
-            account.setCustomerId(request.getCustomerId());
+            account.setCustomerId(userId.longValue());
         }
         
         if (request.getOverdraftLimit() != null) {
@@ -62,18 +88,22 @@ public class AccountService {
         }
         
         Account savedAccount = accountRepository.save(account);
-        
-        // Publication d'un événement
-        //publishAccountEvent("ACCOUNT_CREATED", savedAccount);
+        AccountCreation event = rabbitMqEvent(savedAccount);
+
+        System.out.println("event: " + event);
+
+        rabbitMQSender.send(event);
         
         return mapToResponse(savedAccount);
     }
     
-    public AccountResponse getAccountById(Long accountId) {
+    public AccountResponseWithUser getAccountById(Long accountId) {
         Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountId));
+
+        Integer userId = getUserId();
         
-        return mapToResponse(account);
+        return mapToResponseWithUser(account, userId);
     }
     
     public AccountResponse getAccountByNumber(String accountNumber) {
@@ -185,29 +215,72 @@ public class AccountService {
         response.setCurrency(account.getCurrency());
         response.setCreatedAt(account.getCreatedAt());
         response.setUpdatedAt(account.getUpdatedAt());
+
         return response;
     }
-    
-    /*private void publishAccountEvent(String eventType, Account account) {
-        AccountEvent event = new AccountEvent();
-        event.setEventType(eventType);
-        event.setAccountId(account.getId());
-        event.setAccountNumber(account.getAccountNumber());
-        event.setCustomerId(account.getCustomerId());
-        event.setAccountType(account.getAccountType().toString());
-        event.setBalance(account.getBalance());
-        event.setTimestamp(java.time.LocalDateTime.now());
-        
-        kafkaTemplate.send("account-events", event);
+
+    private AccountCreation rabbitMqEvent(Account account) {
+        AccountCreation accountCreation = new AccountCreation();
+        accountCreation.setId(account.getId());
+        accountCreation.setAccountNumber(account.getAccountNumber());
+        accountCreation.setCustomerId(account.getCustomerId());
+        accountCreation.setAccountType(account.getAccountType());
+        accountCreation.setBalance(account.getBalance());
+        accountCreation.setOverdraftLimit(account.getOverdraftLimit());
+        accountCreation.setCurrency(account.getCurrency());
+
+        return accountCreation;
     }
-    
-    private void publishBalanceUpdateEvent(Account account) {
-        BalanceUpdateEvent event = new BalanceUpdateEvent();
-        event.setAccountId(account.getId());
-        event.setAccountNumber(account.getAccountNumber());
-        event.setNewBalance(account.getBalance());
-        event.setTimestamp(java.time.LocalDateTime.now());
-        
-        kafkaTemplate.send("balance-updates", event);
-    }*/
+
+    private AccountResponseWithUser mapToResponseWithUser(Account account, Integer userId) {
+        AccountResponseWithUser response = new AccountResponseWithUser();
+        response.setId(account.getId());
+        response.setAccountNumber(account.getAccountNumber());
+        response.setAccountType(account.getAccountType());
+        response.setStatus(account.getStatus());
+        response.setBalance(account.getBalance());
+        response.setOverdraftLimit(account.getOverdraftLimit());
+        response.setCurrency(account.getCurrency());
+        response.setCreatedAt(account.getCreatedAt());
+        response.setUpdatedAt(account.getUpdatedAt());
+
+        // Get token from request attributes
+        String token = getToken();
+
+        log.info("fetching customer for userId: {}", userId);
+        log.info("Token retrieved: {}", token != null ? "Present" : "Null");
+
+        if (token == null) {
+            log.error("No JWT token found in request attributes");
+            throw new RuntimeException("Authentication token is required");
+        }
+
+        // Create headers with Authorization token
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+
+        // Debug: Log the authorization header being sent
+        log.info("Authorization header: {}", headers.getFirst("Authorization"));
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            User customer = restTemplate.exchange(
+                    "http://AUTH-SERVICE/api/auth/user-details/" + userId,
+                    HttpMethod.GET,
+                    entity,
+                    User.class
+            ).getBody();
+
+            log.info("Successfully retrieved customer");
+            response.setCustomer(customer);
+        } catch (HttpClientErrorException e) {
+            log.error("HTTP Error calling AUTH-SERVICE: Status={}, Body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        }
+
+        return response;
+    }
+
 }
