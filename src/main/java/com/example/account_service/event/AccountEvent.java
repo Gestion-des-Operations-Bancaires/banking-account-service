@@ -1,4 +1,4 @@
-package com.example.account_service.entity;
+package com.example.account_service.event;
 
 import lombok.Data;
 

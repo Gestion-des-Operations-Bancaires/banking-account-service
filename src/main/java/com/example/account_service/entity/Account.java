@@ -3,7 +3,6 @@ package com.example.account_service.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +10,7 @@ import java.util.List;
 @Entity
 @Table(name = "accounts")
 @Data
-@EntityListeners(AccountListener.class)
+@EntityListeners(AccountPrepersist.class)
 public class Account {
 
     @Id

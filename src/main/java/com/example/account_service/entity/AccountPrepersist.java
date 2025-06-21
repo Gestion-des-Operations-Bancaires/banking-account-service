@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Component
-public class AccountListener {
+public class AccountPrepersist {
 
     @PrePersist
     public void setDefaultValues(Account entity) {

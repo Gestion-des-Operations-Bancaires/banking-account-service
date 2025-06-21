@@ -2,9 +2,12 @@ package com.example.account_service.service;
 
 import com.example.account_service.dto.*;
 import com.example.account_service.entity.Account;
+import com.example.account_service.event.AccountEvent;
 import com.example.account_service.entity.AccountStatus;
-import com.example.account_service.model.AccountCreation;
+import com.example.account_service.event.TransactionEvent;
+import com.example.account_service.mapper.EventMapper;
 import com.example.account_service.repository.AccountRepository;
+import com.example.account_service.service.rabbitmq.producer.AccountProducer;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
@@ -30,7 +33,8 @@ import org.springframework.http.HttpMethod;
 public class AccountService {
 
 
-    private final RabbitMQSender rabbitMQSender;
+    private final AccountProducer rabbitMQSender;
+    private final AccountProducer accountProducer;
     private RestTemplate restTemplate;
     private AccountRepository accountRepository;
 
@@ -88,11 +92,11 @@ public class AccountService {
         }
         
         Account savedAccount = accountRepository.save(account);
-        AccountCreation event = rabbitMqEvent(savedAccount);
+        AccountEvent event = EventMapper.mapToAccountCreateEvent(savedAccount);
 
         System.out.println("event: " + event);
 
-        rabbitMQSender.send(event);
+        accountProducer.sendAccountCreated(event);
         
         return mapToResponse(savedAccount);
     }
@@ -203,6 +207,24 @@ public class AccountService {
         //publishBalanceUpdateEvent(account);
     }
 
+    public void updateBalanceByAccountNumber(String accountNumber, BigDecimal newBalance) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with ID: " + accountNumber));
+
+        BigDecimal minAllowedBalance = account.getOverdraftLimit() != null
+                ? account.getOverdraftLimit().negate()
+                : BigDecimal.ZERO;
+
+        if (newBalance.compareTo(minAllowedBalance) < 0) {
+            throw new RuntimeException("Insufficient funds. Balance would exceed overdraft limit");
+        }
+
+        account.setBalance(newBalance);
+        accountRepository.save(account);
+
+        //publishBalanceUpdateEvent(account);
+    }
+
     private AccountResponse mapToResponse(Account account) {
         AccountResponse response = new AccountResponse();
         response.setId(account.getId());
@@ -217,19 +239,6 @@ public class AccountService {
         response.setUpdatedAt(account.getUpdatedAt());
 
         return response;
-    }
-
-    private AccountCreation rabbitMqEvent(Account account) {
-        AccountCreation accountCreation = new AccountCreation();
-        accountCreation.setId(account.getId());
-        accountCreation.setAccountNumber(account.getAccountNumber());
-        accountCreation.setCustomerId(account.getCustomerId());
-        accountCreation.setAccountType(account.getAccountType());
-        accountCreation.setBalance(account.getBalance());
-        accountCreation.setOverdraftLimit(account.getOverdraftLimit());
-        accountCreation.setCurrency(account.getCurrency());
-
-        return accountCreation;
     }
 
     private AccountResponseWithUser mapToResponseWithUser(Account account, Integer userId) {
@@ -283,4 +292,39 @@ public class AccountService {
         return response;
     }
 
+    public void withdrawOrDepositMoneyOnAccount(TransactionEvent event){
+
+        log.info("Processing transaction: {}", event);
+
+        // Find the account
+        Account account = accountRepository.findByAccountNumber(event.getAccountNumber())
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        // Process based on transaction type
+        switch (event.getTransactionType().toLowerCase()) {
+            case "deposit":
+                account.setBalance(account.getBalance().add(event.getAmount()));
+                log.info("Deposited {} to account {}", event.getAmount(), event.getAccountNumber());
+                break;
+
+            case "withdrawal":
+                if (account.getBalance().compareTo(event.getAmount()) >= 0) {
+                    account.setBalance(account.getBalance().subtract(event.getAmount()));
+                    log.info("Withdrew {} from account {}", event.getAmount(), event.getAccountNumber());
+                } else {
+                    log.error("Insufficient funds in account {}", event.getAccountNumber());
+                    throw new RuntimeException("Insufficient funds");
+                }
+                break;
+
+            default:
+                log.error("Unknown transaction type: {}", event.getTransactionType());
+                throw new RuntimeException("Invalid transaction type");
+        }
+
+        // Save the updated account
+        accountRepository.save(account);
+        log.info("Updated balance for account {}: {}", event.getAccountNumber(), account.getBalance());
+    }
 }
+
